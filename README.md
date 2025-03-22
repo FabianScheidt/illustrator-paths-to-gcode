@@ -8,6 +8,8 @@ Ender-3 V2 into a plotter.
 - Download the script and adjust the configuration values at the top as needed.
 - Open the design to be plotted in Illustrator. Make sure that all elements to be plotted are actual paths. If you want
   to plot text, convert it to a path via *Type > Create Outlines*.
+- Create a spot color with a name that contains the string "Plotter" and assign it as a stroke color to all paths that
+  should be exported.
 - Select and run the script via *File > Scripts > Other Script...*.
 - You will be prompted for a location to store the G-Code file to. After selecting a path, the G-Code will be created.
 

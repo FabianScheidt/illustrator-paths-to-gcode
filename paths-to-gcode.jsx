@@ -13,6 +13,9 @@ var LIFT_FEED = 6000;
 // Height for putting in the paper
 var HIGH_HEIGHT = 50;
 
+// Filter for the spot color name (null will disable the filter)
+var SPOT_COLOR_FILTER = "Plotter";
+
 // Conversion between Illustrator's unit (points) and G-Code (millimeter)
 var POINTS_TO_MILLIMETER = 0.352777777777;
 
@@ -47,12 +50,36 @@ function run() {
         alert("No document open!");
         return;
     }
-    var pathItems = app.activeDocument.pathItems;
+    var pathItems = filterPathItems(app.activeDocument.pathItems);
     var gCode = convertPathsToGCode(pathItems);
 
     var file = File.saveDialog("Select a location to save the G-Code output", "*.gcode");
     saveGCodeFile(gCode, file);
     alert("G-Code exported to " + file.fsName + "!");
+}
+
+/**
+ * Filter the list of path items to only those that match the spot color filter (if set)
+ * @param pathItems
+ * @returns {*|*[]}
+ */
+function filterPathItems(pathItems) {
+    if (SPOT_COLOR_FILTER === null) {
+        return pathItems;
+    }
+
+    var res = [];
+    for (var i = 0; i < pathItems.length; i++) {
+        var pathItem = pathItems[i];
+        var strokeColor = pathItem.strokeColor;
+        if (strokeColor.typename !== "SpotColor") {
+            continue;
+        }
+        if (strokeColor.spot.name.toLowerCase().indexOf(SPOT_COLOR_FILTER.toLowerCase()) > -1) {
+            res.push(pathItem);
+        }
+    }
+    return res;
 }
 
 /**
