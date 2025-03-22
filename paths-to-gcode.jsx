@@ -14,11 +14,11 @@ var LIFT_FEED = 6000;
 var HIGH_HEIGHT = 50;
 
 // Conversion between Illustrator's unit (points) and G-Code (millimeter)
-var POINTS_TO_MILLITMETER = 0.352777777777;
+var POINTS_TO_MILLIMETER = 0.352777777777;
 
 // Max error when interpolating Bézier curves into line segments
 var MAX_ERROR_MILLIMETER = 0.1;
-var MAX_ERROR_POINTS = MAX_ERROR_MILLIMETER / POINTS_TO_MILLITMETER;
+var MAX_ERROR_POINTS = MAX_ERROR_MILLIMETER / POINTS_TO_MILLIMETER;
 
 // G-Code executed before and after the actual paths
 var GCODE_BEFORE = [
@@ -187,14 +187,14 @@ function mapCoordinates(point) {
     // Determine artboard height
     var doc = app.activeDocument;
     var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-    var artboardHeight = (artboard[1] - artboard[3]) * POINTS_TO_MILLITMETER;
+    var artboardHeight = (artboard[1] - artboard[3]) * POINTS_TO_MILLIMETER;
 
     // Convert Illustrator's points to mm and flip y-axis
     return [
         // X-axis matches the printer.
-        point[0] * POINTS_TO_MILLITMETER + PEN_OFFSET_X,
+        point[0] * POINTS_TO_MILLIMETER + PEN_OFFSET_X,
         // Y-axis is inverted and has it's origin at the top left of the document, unlike the printer at the bottom right.
-        point[1] * POINTS_TO_MILLITMETER + PEN_OFFSET_Y + artboardHeight,
+        point[1] * POINTS_TO_MILLIMETER + PEN_OFFSET_Y + artboardHeight,
     ];
 }
 
