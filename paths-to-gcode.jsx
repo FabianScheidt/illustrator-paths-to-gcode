@@ -96,14 +96,15 @@ function convertPathsToGCode(pathItems) {
             continue;
         }
 
+        var artboard = getArtboard(pathItem.position);
         var flattenedPoints = flattenPathPoints(pathItem, 0.05);
 
-        var firstPoint = mapCoordinates(flattenedPoints[0]);
+        var firstPoint = mapCoordinates(flattenedPoints[0], artboard);
         gcode.push("G0 F" + LIFT_FEED + " X" + firstPoint[0].toFixed(2) + " Y" + firstPoint[1].toFixed(2) + " ; Move to start of path");
         gcode.push("G0 Z" + DRAW_HEIGHT.toFixed(2) + " ; Lower pen");
 
         for (var j = 1; j < flattenedPoints.length; j++) {
-            var point = mapCoordinates(flattenedPoints[j]);
+            var point = mapCoordinates(flattenedPoints[j], artboard);
             var addFeed = j === 1 ? " F" + DRAW_FEED : "";
             gcode.push("G1" + addFeed + " X" + point[0].toFixed(2) + " Y" + point[1].toFixed(2));
         }
@@ -210,19 +211,37 @@ function distance(pA, pB) {
  * @param point {number[]}
  * @returns {number[]}
  */
-function mapCoordinates(point) {
-    // Determine artboard height
-    var doc = app.activeDocument;
-    var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-    var artboardHeight = (artboard[1] - artboard[3]) * POINTS_TO_MILLIMETER;
-
-    // Convert Illustrator's points to mm and flip y-axis
+function mapCoordinates(point, artboard) {
     return [
         // X-axis matches the printer.
-        point[0] * POINTS_TO_MILLIMETER + PEN_OFFSET_X,
+        (point[0] - artboard.artboardRect[0]) * POINTS_TO_MILLIMETER + PEN_OFFSET_X,
         // Y-axis is inverted and has it's origin at the top left of the document, unlike the printer at the bottom right.
-        point[1] * POINTS_TO_MILLIMETER + PEN_OFFSET_Y + artboardHeight,
+        (point[1] - artboard.artboardRect[3]) * POINTS_TO_MILLIMETER + PEN_OFFSET_Y,
     ];
+}
+
+/**
+ * Determines an artboard whose bounds cover the provided point. Falls back to the active artboard.
+ * @param point
+ * @returns {*}
+ */
+function getArtboard(point) {
+    var doc = app.activeDocument;
+
+    for (var i = 0; i < doc.artboards.length; i++) {
+        var artboardRect = doc.artboards[i].artboardRect;
+        var left = artboardRect[0];
+        var top = artboardRect[1];
+        var right = artboardRect[2];
+        var bottom = artboardRect[3];
+
+        if (point[0] >= left && point[0] <= right && point[1] <= top && point[1] >= bottom) {
+            return doc.artboards[i];
+        }
+    }
+
+    // Point is outside of all artboards. Fall back to the active one.
+    return doc.artboards[doc.artboards.getActiveArtboardIndex()];
 }
 
 /**
