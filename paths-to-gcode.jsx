@@ -24,22 +24,24 @@ var MAX_ERROR_MILLIMETER = 0.1;
 var MAX_ERROR_POINTS = MAX_ERROR_MILLIMETER / POINTS_TO_MILLIMETER;
 
 // G-Code executed before and after the actual paths
-var GCODE_BEFORE = [
+var GCODE_BEFORE_ALL = [
     ";FLAVOR:Marlin",
     "G28 ; Home all axes",
     "G21 ; Set units to mm",
     "G90 ; Absolute positioning",
+];
+var GCODE_BEFORE_ARTBOARD = [
     "G0 F" + LIFT_FEED + " X0 Y220 Z" + HIGH_HEIGHT + " ; Make room to put in the paper",
     "M0 ; Wait to put in paper",
-    "G0 F" + LIFT_FEED + " X" + PEN_OFFSET_X + " Y" + PEN_OFFSET_Y + " Z" + LIFT_HEIGHT + "; Move to origin at lift height",
     "M75 ; Start timer",
-    "",
 ];
-var GCODE_AFTER = [
+var GCODE_AFTER_ARTBOARD = [
+    "M75 ; Pause timer",
+];
+var GCODE_AFTER_ALL = [
     "M77 ; Stop timer",
     "G0 X0.0 Y220.0 Z20.0 ; Present result",
     "M84 X Y ; Disable all steppers but Z",
-    "",
 ];
 
 /**
@@ -50,8 +52,23 @@ function run() {
         alert("No document open!");
         return;
     }
-    var pathItems = filterPathItems(app.activeDocument.pathItems);
-    var gCode = convertPathsToGCode(pathItems);
+    var doc = app.activeDocument;
+    var pathItems = filterPathItemsBySpotColor(doc.pathItems);
+    var gCode = [];
+
+    // Create G-Code for each individual artboard
+    for (var i = 0; i < doc.artboards.length; i++) {
+        var artboard = doc.artboards[i];
+        var artboardPathItems = filterPathItemsByArtboard(pathItems, artboard);
+        gCode = gCode.concat(
+            ["; Start of Artboard \"" + artboard.name + "\""],
+            GCODE_BEFORE_ARTBOARD,
+            [""],
+            convertPathsToGCode(artboardPathItems, artboard),
+            GCODE_AFTER_ARTBOARD,
+            ["; End of Artboard \"" + artboard.name + "\"", ""],
+        )
+    }
 
     var file = File.saveDialog("Select a location to save the G-Code output", "*.gcode");
     saveGCodeFile(gCode, file);
@@ -61,9 +78,9 @@ function run() {
 /**
  * Filter the list of path items to only those that match the spot color filter (if set)
  * @param pathItems
- * @returns {*|*[]}
+ * @returns {*[]}
  */
-function filterPathItems(pathItems) {
+function filterPathItemsBySpotColor(pathItems) {
     if (SPOT_COLOR_FILTER === null) {
         return pathItems;
     }
@@ -83,11 +100,35 @@ function filterPathItems(pathItems) {
 }
 
 /**
+ * Filter the list of path items to only those that are on the specified artboard
+ * @param pathItems
+ * @param artboard
+ * @returns {*[]}
+ */
+function filterPathItemsByArtboard(pathItems, artboard) {
+    var res = [];
+    for (var i = 0; i < pathItems.length; i++) {
+        var point = pathItems[i].position;
+
+        var left = artboard.artboardRect[0];
+        var top = artboard.artboardRect[1];
+        var right = artboard.artboardRect[2];
+        var bottom = artboard.artboardRect[3];
+
+        if (point[0] >= left && point[0] <= right && point[1] <= top && point[1] >= bottom) {
+            res.push(pathItems[i]);
+        }
+    }
+    return res;
+}
+
+/**
  * Converts a list of path items into a list of G-Code instructions.
  * @param pathItems
+ * @param artboard
  * @returns {string[]}
  */
-function convertPathsToGCode(pathItems) {
+function convertPathsToGCode(pathItems,  artboard) {
     var gcode = [];
     for (var i = 0; i < pathItems.length; i++) {
         var pathItem = pathItems[i];
@@ -96,7 +137,6 @@ function convertPathsToGCode(pathItems) {
             continue;
         }
 
-        var artboard = getArtboard(pathItem.position);
         var flattenedPoints = flattenPathPoints(pathItem, 0.05);
 
         var firstPoint = mapCoordinates(flattenedPoints[0], artboard);
@@ -209,6 +249,7 @@ function distance(pA, pB) {
 /**
  * Maps a point from Illustrator's coordinate system the coordinate system of the 3D printer
  * @param point {number[]}
+ * @param artboard
  * @returns {number[]}
  */
 function mapCoordinates(point, artboard) {
@@ -221,39 +262,17 @@ function mapCoordinates(point, artboard) {
 }
 
 /**
- * Determines an artboard whose bounds cover the provided point. Falls back to the active artboard.
- * @param point
- * @returns {*}
- */
-function getArtboard(point) {
-    var doc = app.activeDocument;
-
-    for (var i = 0; i < doc.artboards.length; i++) {
-        var artboardRect = doc.artboards[i].artboardRect;
-        var left = artboardRect[0];
-        var top = artboardRect[1];
-        var right = artboardRect[2];
-        var bottom = artboardRect[3];
-
-        if (point[0] >= left && point[0] <= right && point[1] <= top && point[1] >= bottom) {
-            return doc.artboards[i];
-        }
-    }
-
-    // Point is outside of all artboards. Fall back to the active one.
-    return doc.artboards[doc.artboards.getActiveArtboardIndex()];
-}
-
-/**
  * Saves G-Code to a file, adding the configured code before and after.
  * @param gCode {string[]}
  * @param file {File}
  */
 function saveGCodeFile(gCode, file) {
     var gcodeStr = [].concat(
-        GCODE_BEFORE,
+        GCODE_BEFORE_ALL,
+        [""],
         gCode,
-        GCODE_AFTER,
+        GCODE_AFTER_ALL,
+        [""],
     ).join("\n");
 
     file.open("w");
