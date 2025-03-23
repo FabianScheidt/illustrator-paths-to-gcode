@@ -1,9 +1,9 @@
 // Offset of the pen relative to the origin
-var PEN_OFFSET_X = 35
-var PEN_OFFSET_Y = 23
+var PEN_OFFSET_X = 35;
+var PEN_OFFSET_Y = 23;
 
 // Z height and feed when drawing
-var DRAW_HEIGHT = 0;
+var DRAW_HEIGHT = 0.3;
 var DRAW_FEED = 2000;
 
 // Z height and feed when moving between paths
@@ -11,7 +11,7 @@ var LIFT_HEIGHT = DRAW_HEIGHT + 2;
 var LIFT_FEED = 6000;
 
 // Height for putting in the paper
-var HIGH_HEIGHT = 50;
+var HIGH_HEIGHT = 30;
 
 // Filter for the spot color name (null will disable the filter)
 var SPOT_COLOR_FILTER = "Plotter";
@@ -31,7 +31,7 @@ var GCODE_BEFORE_ALL = [
     "G90 ; Absolute positioning",
 ];
 var GCODE_BEFORE_ARTBOARD = [
-    "G0 F" + LIFT_FEED + " X0 Y220 Z" + HIGH_HEIGHT + " ; Make room to put in the paper",
+    "G0 F" + LIFT_FEED.toFixed(3) + " X0 Y220 Z" + HIGH_HEIGHT.toFixed(3) + " ; Make room to put in the paper",
     "M0 ; Wait to put in paper",
     "M75 ; Start timer",
 ];
@@ -40,7 +40,7 @@ var GCODE_AFTER_ARTBOARD = [
 ];
 var GCODE_AFTER_ALL = [
     "M77 ; Stop timer",
-    "G0 X0.0 Y220.0 Z20.0 ; Present result",
+    "G0 X0.0 Y220.0 Z" + HIGH_HEIGHT.toFixed(3) + " ; Present result",
     "M84 X Y ; Disable all steppers but Z",
 ];
 
@@ -140,16 +140,16 @@ function convertPathsToGCode(pathItems,  artboard) {
         var flattenedPoints = flattenPathPoints(pathItem, 0.05);
 
         var firstPoint = mapCoordinates(flattenedPoints[0], artboard);
-        gcode.push("G0 F" + LIFT_FEED + " X" + firstPoint[0].toFixed(2) + " Y" + firstPoint[1].toFixed(2) + " ; Move to start of path");
-        gcode.push("G0 Z" + DRAW_HEIGHT.toFixed(2) + " ; Lower pen");
+        gcode.push("G0 F" + LIFT_FEED + " X" + firstPoint[0].toFixed(3) + " Y" + firstPoint[1].toFixed(3) + " ; Move to start of path");
+        gcode.push("G0 Z" + DRAW_HEIGHT.toFixed(3) + " ; Lower pen");
 
         for (var j = 1; j < flattenedPoints.length; j++) {
             var point = mapCoordinates(flattenedPoints[j], artboard);
             var addFeed = j === 1 ? " F" + DRAW_FEED : "";
-            gcode.push("G1" + addFeed + " X" + point[0].toFixed(2) + " Y" + point[1].toFixed(2));
+            gcode.push("G1" + addFeed + " X" + point[0].toFixed(3) + " Y" + point[1].toFixed(3));
         }
 
-        gcode.push("G0 Z" + LIFT_HEIGHT.toFixed(2) + " ; Lift pen");
+        gcode.push("G0 Z" + LIFT_HEIGHT.toFixed(3) + " ; Lift pen");
         gcode.push("");
     }
     return gcode;
@@ -275,6 +275,7 @@ function saveGCodeFile(gCode, file) {
         [""],
     ).join("\n");
 
+    file.encoding = "utf-8";
     file.open("w");
     file.write(gcodeStr);
     file.close();
